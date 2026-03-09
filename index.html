@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Poker Ecosystem Simulator</title>
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Chart.js (local copy, no CDN dependency) -->
+  <script src="chart.umd.js"></script>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════
+     HEADER
+════════════════════════════════════════════════════════ -->
+<header>
+  <span class="suit-icon">♠</span>
+  <h1>Poker Ecosystem Simulator</h1>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════
+     APP LAYOUT
+════════════════════════════════════════════════════════ -->
+<div class="app-container">
+
+  <!-- ── CONTROLS PANEL ──────────────────────────────── -->
+  <aside class="controls-panel">
+
+    <div>
+      <h2>Matchmaking</h2>
+      <div class="control-group">
+        <label for="modeSelect">Mode</label>
+        <select id="modeSelect">
+          <option value="random">Random Pool</option>
+          <option value="banding">Skill Banding</option>
+          <option value="beginner">Beginner Pool</option>
+          <option value="short">Short Match Format</option>
+          <option value="compare">── Compare All ──</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div>
+      <h2>Simulation Parameters</h2>
+
+      <div class="control-group">
+        <label for="startBankroll">
+          Starting Bankroll <span class="val" id="startBankrollVal">$500</span>
+        </label>
+        <input type="range" id="startBankroll"
+               min="50" max="2000" step="50" value="500" />
+      </div>
+
+      <div class="control-group">
+        <label for="bigBlind">
+          Big Blind <span class="val" id="bigBlindVal">$5</span>
+        </label>
+        <input type="range" id="bigBlind"
+               min="1" max="50" step="1" value="5" />
+      </div>
+
+      <div class="control-group">
+        <label for="handsPerSession">
+          Hands per Session <span class="val" id="handsPerSessionVal">50</span>
+        </label>
+        <input type="range" id="handsPerSession"
+               min="10" max="200" step="10" value="50" />
+      </div>
+
+      <div class="control-group">
+        <label for="numSessions">
+          Sessions to Simulate <span class="val" id="numSessionsVal">20</span>
+        </label>
+        <input type="range" id="numSessions"
+               min="5" max="100" step="5" value="20" />
+      </div>
+
+      <div class="control-group">
+        <label for="numSimulations">
+          Monte Carlo Runs <span class="val" id="numSimulationsVal">1 000</span>
+        </label>
+        <input type="range" id="numSimulations"
+               min="500" max="5000" step="500" value="1000" />
+      </div>
+
+      <div class="control-group">
+        <label for="poolSpread">
+          Player Pool Spread <span class="val" id="poolSpreadVal">500</span>
+        </label>
+        <input type="range" id="poolSpread"
+               min="50" max="1000" step="50" value="500" />
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Progress indicator -->
+    <div id="progressWrap">
+      <div id="progressBar"><div id="progressFill"></div></div>
+      <div id="progressLabel">Running…</div>
+    </div>
+
+    <button id="runBtn">▶ Run Simulation</button>
+
+  </aside>
+
+  <!-- ── CHARTS AREA ─────────────────────────────────── -->
+  <main class="charts-area">
+
+    <!-- Survival Curve -->
+    <div class="chart-card">
+      <h3>Survival Curve</h3>
+      <p class="chart-subtitle">
+        Probability of a new player still being in the game after N hands.
+      </p>
+      <div class="chart-canvas-wrap">
+        <canvas id="survivalChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Average Bankroll Trajectory -->
+    <div class="chart-card">
+      <h3>Average Bankroll Trajectory</h3>
+      <p class="chart-subtitle">
+        Mean bankroll across all Monte Carlo runs over time.
+      </p>
+      <div class="chart-canvas-wrap">
+        <canvas id="bankrollChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Bust Rate Comparison -->
+    <div class="chart-card">
+      <h3>Bust Rate by Matchmaking Mode</h3>
+      <p class="chart-subtitle">
+        Percentage of simulated players who ran out of chips.
+      </p>
+      <div class="chart-canvas-wrap">
+        <canvas id="bustChart"></canvas>
+      </div>
+      <div id="bustStats"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SCRIPTS (order matters: simulator → charts → main)
+════════════════════════════════════════════════════════ -->
+<script src="simulator.js"></script>
+<script src="charts.js"></script>
+<script>
+  // ──────────────────────────────────────────────────────
+  // UI helpers
+  // ──────────────────────────────────────────────────────
+
+  /** Read a slider value and update its display label. */
+  function sliderSetup(id, formatFn) {
+    const el  = document.getElementById(id);
+    const lbl = document.getElementById(id + 'Val');
+    function update() {
+      const v = Number(el.value);
+      lbl.textContent = formatFn(v);
+      // Update CSS custom property for gradient fill
+      const pct = ((v - el.min) / (el.max - el.min)) * 100;
+      el.style.setProperty('--pct', pct + '%');
+    }
+    el.addEventListener('input', update);
+    update(); // initialise on load
+    return el;
+  }
+
+  function fmtDollar(v) { return '$' + v; }
+  function fmtNum(v)    { return v.toLocaleString(); }
+  function fmtPlain(v)  { return String(v); }
+
+  sliderSetup('startBankroll',   fmtDollar);
+  sliderSetup('bigBlind',        fmtDollar);
+  sliderSetup('handsPerSession', fmtPlain);
+  sliderSetup('numSessions',     fmtPlain);
+  sliderSetup('numSimulations',  fmtNum);
+  sliderSetup('poolSpread',      fmtPlain);
+
+  // ──────────────────────────────────────────────────────
+  // Gather parameters from UI
+  // ──────────────────────────────────────────────────────
+
+  function getParams() {
+    const handsPerSession = Number(document.getElementById('handsPerSession').value);
+    const numSessions     = Number(document.getElementById('numSessions').value);
+    return {
+      startingBankroll: Number(document.getElementById('startBankroll').value),
+      bigBlind:         Number(document.getElementById('bigBlind').value),
+      handsPerSession,
+      maxHands:         handsPerSession * numSessions,
+      numSimulations:   Number(document.getElementById('numSimulations').value),
+      poolSpread:       Number(document.getElementById('poolSpread').value),
+      mode:             document.getElementById('modeSelect').value,
+      // playerSkill: new player baseline (1000 = beginner reference point)
+      playerSkill:      1000,
+      // scalingFactor: controls how much skill gap shifts win probability;
+      // a 500-point skill gap at 2000 scaling shifts win rate by 25% (0.25)
+      scalingFactor:    2000,
+    };
+  }
+
+  // ──────────────────────────────────────────────────────
+  // Progress bar helpers
+  // ──────────────────────────────────────────────────────
+
+  function showProgress(pct, label) {
+    document.getElementById('progressWrap').classList.add('visible');
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressLabel').textContent = label;
+  }
+
+  function hideProgress() {
+    document.getElementById('progressWrap').classList.remove('visible');
+    document.getElementById('progressFill').style.width = '0%';
+  }
+
+  // ──────────────────────────────────────────────────────
+  // Run simulation (async via setTimeout to allow UI paint)
+  // ──────────────────────────────────────────────────────
+
+  function runSimulationAsync(params) {
+    const btn = document.getElementById('runBtn');
+    btn.disabled = true;
+    showProgress(10, 'Initializing…');
+
+    // Yield to the browser so the progress bar paints before heavy work
+    setTimeout(() => {
+      const isCompare = params.mode === 'compare';
+
+      showProgress(40, isCompare ? 'Running all modes…' : 'Simulating…');
+
+      setTimeout(() => {
+        let resultsMap;
+
+        if (isCompare) {
+          resultsMap = runComparisonSimulation(params);
+        } else {
+          const single = runSimulation(params);
+          resultsMap   = { [params.mode]: single };
+        }
+
+        showProgress(80, 'Rendering charts…');
+
+        setTimeout(() => {
+          // Survival & bankroll charts
+          const survivalInput  = isCompare ? resultsMap : resultsMap[params.mode];
+          const bankrollInput  = isCompare ? resultsMap : resultsMap[params.mode];
+          const modeKey        = isCompare ? null : params.mode;
+
+          renderSurvivalChart(survivalInput,  modeKey);
+          renderBankrollChart(bankrollInput,  modeKey);
+          renderBustChart(resultsMap);
+          updateBustStats(resultsMap);
+
+          hideProgress();
+          btn.disabled = false;
+        }, 30);
+      }, 30);
+    }, 30);
+  }
+
+  // ──────────────────────────────────────────────────────
+  // Wire up the Run button
+  // ──────────────────────────────────────────────────────
+
+  document.getElementById('runBtn').addEventListener('click', () => {
+    runSimulationAsync(getParams());
+  });
+
+  // ──────────────────────────────────────────────────────
+  // Run once on load with default params so charts appear immediately
+  // ──────────────────────────────────────────────────────
+
+  window.addEventListener('load', () => {
+    runSimulationAsync(getParams());
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,301 @@
+/* =========================================================
+   style.css — Poker Ecosystem Simulator
+   ========================================================= */
+
+/* ── Reset & Base ───────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg-page:    #0f0f1a;
+  --bg-panel:   #16162a;
+  --bg-card:    #1e1e35;
+  --accent:     #7c4dff;
+  --accent-lit: #aa80ff;
+  --text-hi:    #e8e8f0;
+  --text-lo:    #888899;
+  --border:     rgba(255,255,255,0.08);
+  --radius:     10px;
+  --shadow:     0 4px 24px rgba(0,0,0,0.5);
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background: var(--bg-page);
+  color: var(--text-hi);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  min-height: 100vh;
+}
+
+/* ── Layout ─────────────────────────────────────────────── */
+header {
+  background: linear-gradient(135deg, #1a1a35 0%, #2d1b69 100%);
+  padding: 1.4rem 2rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+header h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-hi);
+}
+
+header .suit-icon {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.app-container {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 0;
+  min-height: calc(100vh - 72px);
+}
+
+/* ── Controls Panel ─────────────────────────────────────── */
+.controls-panel {
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  padding: 1.5rem 1.25rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.controls-panel h2 {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-lo);
+  margin-bottom: 0.25rem;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.control-group label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.88rem;
+  color: var(--text-hi);
+}
+
+.control-group label .val {
+  color: var(--accent-lit);
+  font-weight: 600;
+  min-width: 55px;
+  text-align: right;
+}
+
+.control-group select,
+.control-group input[type="range"] {
+  width: 100%;
+}
+
+select {
+  background: var(--bg-card);
+  color: var(--text-hi);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.88rem;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.7rem center;
+  padding-right: 2rem;
+}
+
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  height: 5px;
+  border-radius: 3px;
+  background: linear-gradient(to right, var(--accent) var(--pct, 50%), #333 var(--pct, 50%));
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent-lit);
+  border: 2px solid var(--bg-page);
+  box-shadow: 0 0 0 2px var(--accent);
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent-lit);
+  border: 2px solid var(--bg-page);
+  box-shadow: 0 0 0 2px var(--accent);
+  cursor: pointer;
+}
+
+.divider {
+  height: 1px;
+  background: var(--border);
+}
+
+/* ── Run button ─────────────────────────────────────────── */
+#runBtn {
+  width: 100%;
+  padding: 0.7rem;
+  background: linear-gradient(135deg, #6c3ce1, #9b5de5);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+  margin-top: auto;
+}
+
+#runBtn:hover  { opacity: 0.9; }
+#runBtn:active { transform: scale(0.97); }
+#runBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Progress indicator ─────────────────────────────────── */
+#progressWrap {
+  display: none;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+#progressWrap.visible { display: flex; }
+
+#progressBar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-card);
+  overflow: hidden;
+}
+
+#progressFill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-lit));
+  transition: width 0.1s linear;
+}
+
+#progressLabel {
+  font-size: 0.75rem;
+  color: var(--text-lo);
+  text-align: center;
+}
+
+/* ── Charts area ────────────────────────────────────────── */
+.charts-area {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  overflow-y: auto;
+}
+
+.chart-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  box-shadow: var(--shadow);
+}
+
+.chart-card h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-hi);
+  margin-bottom: 0.25rem;
+}
+
+.chart-card .chart-subtitle {
+  font-size: 0.78rem;
+  color: var(--text-lo);
+  margin-bottom: 1rem;
+}
+
+.chart-canvas-wrap {
+  position: relative;
+  height: 280px;
+}
+
+/* bust stats pills */
+#bustStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.stat-pill {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid;
+  border-radius: 999px;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+/* ── Empty-state placeholder ────────────────────────────── */
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-lo);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+/* ── Responsive ─────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .app-container {
+    grid-template-columns: 1fr;
+  }
+
+  .controls-panel {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 1.25rem;
+  }
+
+  .charts-area { padding: 1rem; }
+
+  .chart-canvas-wrap { height: 220px; }
+}
+
+/* ── Scrollbar ──────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
