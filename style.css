@@ -420,3 +420,44 @@ input[type="range"]::-moz-range-thumb {
 ::-webkit-scrollbar        { width: 6px; }
 ::-webkit-scrollbar-track  { background: transparent; }
 ::-webkit-scrollbar-thumb  { background: #444; border-radius: 3px; }
+
+/* ── Tooltips ───────────────────────────────────────────── */
+.tooltip {
+  position: relative;
+  cursor: help;
+}
+
+.tooltip .tooltiptext {
+  visibility: hidden;
+  width: 260px;
+  background-color: #222;
+  color: #fff;
+  text-align: left;
+  border-radius: 6px;
+  padding: 8px;
+  position: absolute;
+  z-index: 100;
+  bottom: 125%;
+  left: 50%;
+  margin-left: -130px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  font-size: 13px;
+  line-height: 1.4;
+  pointer-events: none;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.tooltip:hover .tooltiptext {
+  visibility: visible;
+  opacity: 1;
+}
+
+.info-icon {
+  color: var(--text-lo);
+  font-size: 0.8em;
+  margin-left: 4px;
+  vertical-align: middle;
+}
