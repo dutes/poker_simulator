@@ -5,8 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Poker Ecosystem Simulator</title>
   <link rel="stylesheet" href="style.css" />
-
-  <!-- Chart.js (local copy, no CDN dependency) -->
+  <!-- Chart.js (local copy — no CDN dependency) -->
   <script src="chart.umd.js"></script>
 </head>
 <body>
@@ -17,7 +16,15 @@
 <header>
   <span class="suit-icon">♠</span>
   <h1>Poker Ecosystem Simulator</h1>
+  <span class="version-badge">v2</span>
 </header>
+
+<!-- Disclaimer banner -->
+<div class="disclaimer">
+  This is an exploratory product simulation tool, not a real poker EV calculator.
+  It is designed to visualise directional effects of format design and matchmaking
+  on beginner survival and early retention.
+</div>
 
 <!-- ═══════════════════════════════════════════════════════
      APP LAYOUT
@@ -27,22 +34,48 @@
   <!-- ── CONTROLS PANEL ──────────────────────────────── -->
   <aside class="controls-panel">
 
+    <!-- Game Format selector -->
     <div>
-      <h2>Matchmaking</h2>
+      <h2>Game Format</h2>
       <div class="control-group">
-        <label for="modeSelect">Mode</label>
-        <select id="modeSelect">
-          <option value="random">Random Pool</option>
-          <option value="banding">Skill Banding</option>
-          <option value="beginner">Beginner Pool</option>
-          <option value="short">Short Match Format</option>
-          <option value="compare">── Compare All ──</option>
+        <label for="gameType">Game Type</label>
+        <select id="gameType">
+          <option value="nlhe_cash">NLHE Cash</option>
+          <option value="spin_go">Spin &amp; Go</option>
+          <option value="plo_cash">PLO Cash</option>
+          <option value="poker_match">Poker Match Beginner</option>
+          <option value="compare_formats">── Compare All Formats ──</option>
         </select>
       </div>
     </div>
 
     <div class="divider"></div>
 
+    <!-- Matchmaking Policy selector -->
+    <div>
+      <h2>Matchmaking Policy</h2>
+      <div class="control-group">
+        <label for="policySelect">Policy</label>
+        <select id="policySelect">
+          <option value="random">Random Pool</option>
+          <option value="banding">Skill Banding</option>
+          <option value="beginner">Beginner Pool</option>
+          <option value="protected">Protected Onboarding</option>
+          <option value="compare_policies">── Compare All Policies ──</option>
+        </select>
+      </div>
+      <!-- Protected Onboarding count — shown only when policy = protected -->
+      <div id="protectedControl" class="control-group" style="display:none">
+        <label for="protectedCount">
+          Protected Units <span class="val" id="protectedCountVal">10</span>
+        </label>
+        <input type="range" id="protectedCount" min="1" max="50" step="1" value="10" />
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Global simulation parameters -->
     <div>
       <h2>Simulation Parameters</h2>
 
@@ -50,54 +83,112 @@
         <label for="startBankroll">
           Starting Bankroll <span class="val" id="startBankrollVal">$500</span>
         </label>
-        <input type="range" id="startBankroll"
-               min="50" max="2000" step="50" value="500" />
-      </div>
-
-      <div class="control-group">
-        <label for="bigBlind">
-          Big Blind <span class="val" id="bigBlindVal">$5</span>
-        </label>
-        <input type="range" id="bigBlind"
-               min="1" max="50" step="1" value="5" />
-      </div>
-
-      <div class="control-group">
-        <label for="handsPerSession">
-          Hands per Session <span class="val" id="handsPerSessionVal">50</span>
-        </label>
-        <input type="range" id="handsPerSession"
-               min="10" max="200" step="10" value="50" />
-      </div>
-
-      <div class="control-group">
-        <label for="numSessions">
-          Sessions to Simulate <span class="val" id="numSessionsVal">20</span>
-        </label>
-        <input type="range" id="numSessions"
-               min="5" max="100" step="5" value="20" />
+        <input type="range" id="startBankroll" min="50" max="2000" step="50" value="500" />
       </div>
 
       <div class="control-group">
         <label for="numSimulations">
-          Monte Carlo Runs <span class="val" id="numSimulationsVal">1 000</span>
+          Monte Carlo Runs <span class="val" id="numSimulationsVal">1,000</span>
         </label>
-        <input type="range" id="numSimulations"
-               min="500" max="5000" step="500" value="1000" />
+        <input type="range" id="numSimulations" min="500" max="5000" step="500" value="1000" />
       </div>
 
       <div class="control-group">
         <label for="poolSpread">
-          Player Pool Spread <span class="val" id="poolSpreadVal">500</span>
+          Pool Skill Spread <span class="val" id="poolSpreadVal">500</span>
         </label>
-        <input type="range" id="poolSpread"
-               min="50" max="1000" step="50" value="500" />
+        <input type="range" id="poolSpread" min="50" max="1000" step="50" value="500" />
+      </div>
+
+      <div class="control-group">
+        <label for="scalingFactor">
+          Scaling Factor <span class="val" id="scalingFactorVal">2000</span>
+        </label>
+        <input type="range" id="scalingFactor" min="500" max="5000" step="100" value="2000" />
+      </div>
+
+      <div class="control-group">
+        <label for="playerSkill">
+          Player Skill <span class="val" id="playerSkillVal">1000</span>
+        </label>
+        <input type="range" id="playerSkill" min="500" max="2000" step="50" value="1000" />
       </div>
     </div>
 
     <div class="divider"></div>
 
-    <!-- Progress indicator -->
+    <!-- ── NLHE Cash / PLO Cash controls ── -->
+    <div id="cashControls">
+      <h2>Cash Game Settings</h2>
+      <div class="control-group">
+        <label for="bigBlind">
+          Big Blind <span class="val" id="bigBlindVal">$5</span>
+        </label>
+        <input type="range" id="bigBlind" min="1" max="50" step="1" value="5" />
+      </div>
+      <div class="control-group">
+        <label for="handsPerSession">
+          Hands per Session <span class="val" id="handsPerSessionVal">200</span>
+        </label>
+        <input type="range" id="handsPerSession" min="20" max="500" step="10" value="200" />
+      </div>
+    </div>
+
+    <!-- ── Spin & Go controls (hidden by default) ── -->
+    <div id="spinGoControls" style="display:none">
+      <h2>Spin &amp; Go Settings</h2>
+      <div class="control-group">
+        <label for="buyIn">
+          Buy-in <span class="val" id="buyInVal">$10</span>
+        </label>
+        <input type="range" id="buyIn" min="1" max="100" step="1" value="10" />
+      </div>
+      <div class="control-group">
+        <label for="numTournaments">
+          Tournaments <span class="val" id="numTournamentsVal">50</span>
+        </label>
+        <input type="range" id="numTournaments" min="10" max="200" step="5" value="50" />
+      </div>
+      <div class="control-group">
+        <label for="prizeMultiplier">
+          Prize Multiplier <span class="val" id="prizeMultiplierVal">1.0</span>
+        </label>
+        <input type="range" id="prizeMultiplier" min="0.5" max="3.0" step="0.1" value="1.0" />
+      </div>
+    </div>
+
+    <!-- ── Poker Match Beginner controls (hidden by default) ── -->
+    <div id="matchControls" style="display:none">
+      <h2>Poker Match Settings</h2>
+      <div class="control-group">
+        <label for="matchCost">
+          Match Entry Cost <span class="val" id="matchCostVal">$10</span>
+        </label>
+        <input type="range" id="matchCost" min="1" max="100" step="1" value="10" />
+      </div>
+      <div class="control-group">
+        <label for="matchReward">
+          Match Reward <span class="val" id="matchRewardVal">$10</span>
+        </label>
+        <input type="range" id="matchReward" min="1" max="100" step="1" value="10" />
+      </div>
+      <div class="control-group">
+        <label for="numMatches">
+          Matches per Session <span class="val" id="numMatchesVal">50</span>
+        </label>
+        <input type="range" id="numMatches" min="10" max="200" step="5" value="50" />
+      </div>
+      <div class="control-group">
+        <label for="edgeCompression">
+          Edge Compression <span class="val" id="edgeCompressionVal">0.40</span>
+        </label>
+        <input type="range" id="edgeCompression" min="0.10" max="1.00" step="0.05" value="0.40" />
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Progress indicator + Run button -->
     <div id="progressWrap">
       <div id="progressBar"><div id="progressFill"></div></div>
       <div id="progressLabel">Running…</div>
@@ -107,14 +198,51 @@
 
   </aside>
 
-  <!-- ── CHARTS AREA ─────────────────────────────────── -->
+  <!-- ── MAIN CONTENT AREA ──────────────────────────── -->
   <main class="charts-area">
 
+    <!-- Stat cards row -->
+    <div class="stat-cards">
+      <div class="stat-card">
+        <div class="stat-label">Bust Rate</div>
+        <div class="stat-value" id="statBustRate">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Survival to Midpoint</div>
+        <div class="stat-value" id="statSurvivalMid">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Survival to End</div>
+        <div class="stat-value" id="statSurvivalEnd">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Avg Ending Bankroll</div>
+        <div class="stat-value" id="statAvgBankroll">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Avg Units Survived</div>
+        <div class="stat-value" id="statAvgUnits">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Retention @10 units</div>
+        <div class="stat-value" id="statRet10">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Retention @25 units</div>
+        <div class="stat-value" id="statRet25">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Retention @50 units</div>
+        <div class="stat-value" id="statRet50">—</div>
+      </div>
+    </div>
+
     <!-- Survival Curve -->
-    <div class="chart-card">
+    <div class="chart-card" id="survivalCard">
       <h3>Survival Curve</h3>
       <p class="chart-subtitle">
-        Probability of a new player still being in the game after N hands.
+        Probability of a new player still having bankroll remaining over time.
+        X-axis adapts to the selected format (hands, tournaments, or matches).
       </p>
       <div class="chart-canvas-wrap">
         <canvas id="survivalChart"></canvas>
@@ -122,7 +250,7 @@
     </div>
 
     <!-- Average Bankroll Trajectory -->
-    <div class="chart-card">
+    <div class="chart-card" id="bankrollCard">
       <h3>Average Bankroll Trajectory</h3>
       <p class="chart-subtitle">
         Mean bankroll across all Monte Carlo runs over time.
@@ -134,7 +262,7 @@
 
     <!-- Bust Rate Comparison -->
     <div class="chart-card">
-      <h3>Bust Rate by Matchmaking Mode</h3>
+      <h3>Bust Rate Comparison</h3>
       <p class="chart-subtitle">
         Percentage of simulated players who ran out of chips.
       </p>
@@ -144,145 +272,40 @@
       <div id="bustStats"></div>
     </div>
 
+    <!-- Format Comparison Table (Compare Formats mode only) -->
+    <div class="chart-card" id="compareTableCard" style="display:none">
+      <h3>Format Comparison Summary</h3>
+      <p class="chart-subtitle">
+        Key survival and retention metrics across all game formats for the selected matchmaking policy.
+      </p>
+      <div id="comparisonTable"></div>
+    </div>
+
+    <!-- Methodology note -->
+    <div class="methodology-card">
+      <h3>Methodology &amp; Assumptions</h3>
+      <p>
+        Simulation uses abstract skill-based probabilistic outcomes — no real poker hand logic is implemented.
+        Base win probability: <code>0.5 − (opponentSkill − playerSkill) / scalingFactor</code>, clamped to [5 %, 95 %].
+        Each format applies its own edge-realization and volatility modifiers.
+        <strong>Poker Match Beginner</strong> additionally compresses skill edge by a configurable factor to reflect
+        its simplified mechanics (redraw, fixed bets, best-of-three structure).
+        Results are averages across Monte Carlo runs and should be interpreted <em>directionally</em>,
+        not as precise predictions.
+      </p>
+    </div>
+
   </main>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════
-     SCRIPTS (order matters: simulator → charts → main)
+     SCRIPTS  (dependency order matters)
 ════════════════════════════════════════════════════════ -->
+<script src="matchmaking.js"></script>
+<script src="formats.js"></script>
 <script src="simulator.js"></script>
 <script src="charts.js"></script>
-<script>
-  // ──────────────────────────────────────────────────────
-  // UI helpers
-  // ──────────────────────────────────────────────────────
-
-  /** Read a slider value and update its display label. */
-  function sliderSetup(id, formatFn) {
-    const el  = document.getElementById(id);
-    const lbl = document.getElementById(id + 'Val');
-    function update() {
-      const v = Number(el.value);
-      lbl.textContent = formatFn(v);
-      // Update CSS custom property for gradient fill
-      const pct = ((v - el.min) / (el.max - el.min)) * 100;
-      el.style.setProperty('--pct', pct + '%');
-    }
-    el.addEventListener('input', update);
-    update(); // initialise on load
-    return el;
-  }
-
-  function fmtDollar(v) { return '$' + v; }
-  function fmtNum(v)    { return v.toLocaleString(); }
-  function fmtPlain(v)  { return String(v); }
-
-  sliderSetup('startBankroll',   fmtDollar);
-  sliderSetup('bigBlind',        fmtDollar);
-  sliderSetup('handsPerSession', fmtPlain);
-  sliderSetup('numSessions',     fmtPlain);
-  sliderSetup('numSimulations',  fmtNum);
-  sliderSetup('poolSpread',      fmtPlain);
-
-  // ──────────────────────────────────────────────────────
-  // Gather parameters from UI
-  // ──────────────────────────────────────────────────────
-
-  function getParams() {
-    const handsPerSession = Number(document.getElementById('handsPerSession').value);
-    const numSessions     = Number(document.getElementById('numSessions').value);
-    return {
-      startingBankroll: Number(document.getElementById('startBankroll').value),
-      bigBlind:         Number(document.getElementById('bigBlind').value),
-      handsPerSession,
-      maxHands:         handsPerSession * numSessions,
-      numSimulations:   Number(document.getElementById('numSimulations').value),
-      poolSpread:       Number(document.getElementById('poolSpread').value),
-      mode:             document.getElementById('modeSelect').value,
-      // playerSkill: new player baseline (1000 = beginner reference point)
-      playerSkill:      1000,
-      // scalingFactor: controls how much skill gap shifts win probability;
-      // a 500-point skill gap at 2000 scaling shifts win rate by 25% (0.25)
-      scalingFactor:    2000,
-    };
-  }
-
-  // ──────────────────────────────────────────────────────
-  // Progress bar helpers
-  // ──────────────────────────────────────────────────────
-
-  function showProgress(pct, label) {
-    document.getElementById('progressWrap').classList.add('visible');
-    document.getElementById('progressFill').style.width = pct + '%';
-    document.getElementById('progressLabel').textContent = label;
-  }
-
-  function hideProgress() {
-    document.getElementById('progressWrap').classList.remove('visible');
-    document.getElementById('progressFill').style.width = '0%';
-  }
-
-  // ──────────────────────────────────────────────────────
-  // Run simulation (async via setTimeout to allow UI paint)
-  // ──────────────────────────────────────────────────────
-
-  function runSimulationAsync(params) {
-    const btn = document.getElementById('runBtn');
-    btn.disabled = true;
-    showProgress(10, 'Initializing…');
-
-    // Yield to the browser so the progress bar paints before heavy work
-    setTimeout(() => {
-      const isCompare = params.mode === 'compare';
-
-      showProgress(40, isCompare ? 'Running all modes…' : 'Simulating…');
-
-      setTimeout(() => {
-        let resultsMap;
-
-        if (isCompare) {
-          resultsMap = runComparisonSimulation(params);
-        } else {
-          const single = runSimulation(params);
-          resultsMap   = { [params.mode]: single };
-        }
-
-        showProgress(80, 'Rendering charts…');
-
-        setTimeout(() => {
-          // Survival & bankroll charts
-          const survivalInput  = isCompare ? resultsMap : resultsMap[params.mode];
-          const bankrollInput  = isCompare ? resultsMap : resultsMap[params.mode];
-          const modeKey        = isCompare ? null : params.mode;
-
-          renderSurvivalChart(survivalInput,  modeKey);
-          renderBankrollChart(bankrollInput,  modeKey);
-          renderBustChart(resultsMap);
-          updateBustStats(resultsMap);
-
-          hideProgress();
-          btn.disabled = false;
-        }, 30);
-      }, 30);
-    }, 30);
-  }
-
-  // ──────────────────────────────────────────────────────
-  // Wire up the Run button
-  // ──────────────────────────────────────────────────────
-
-  document.getElementById('runBtn').addEventListener('click', () => {
-    runSimulationAsync(getParams());
-  });
-
-  // ──────────────────────────────────────────────────────
-  // Run once on load with default params so charts appear immediately
-  // ──────────────────────────────────────────────────────
-
-  window.addEventListener('load', () => {
-    runSimulationAsync(getParams());
-  });
-</script>
+<script src="ui.js"></script>
 
 </body>
 </html>
