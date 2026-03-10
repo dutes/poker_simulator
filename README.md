@@ -335,8 +335,8 @@ Each format has parameters that modify how the base win probability translates i
 | Concept | Description |
 |---|---|
 | **Edge Realization** | A multiplier on the skill edge: `effective_win_prob = 0.5 + (win_prob − 0.5) × edgeRealization`. A value below 1.0 compresses the edge (luck dominates); above 1.0 amplifies it (skill dominates). |
-| **Volatility** | Scales the monetary stake per unit. Higher values mean bigger swings per hand or tournament. |
-| **Big Swings** | An optional per-hand event (PLO Cash only) where the pot is multiplied by `bigSwingMult` with probability `bigSwingFreq`. |
+| **Volatility** | A per-hand stake multiplier that scales how many big blinds are won or lost on a single hand: `delta = ±stake × volatility`. Applies only to cash-game formats (NLHE Cash and PLO Cash). Spin & Go and Poker Match define this field in their config as a descriptive annotation but do not apply it in their resolution functions (see §§6.4–6.5). |
+| **Big Swings** | An optional per-hand event (PLO Cash only) where the pot is multiplied by `bigSwingMult` with probability `bigSwingFreq`, giving `delta = ±stake × volatility × bigSwingMult`. |
 
 #### 6.2 NLHE Cash (No-Limit Hold'em Cash Game)
 
@@ -351,12 +351,15 @@ FORMAT_CONFIGS.nlhe_cash = {
 **Hand resolution:**
 
 ```
-effective_win_prob = 0.5 + (win_prob − 0.5) × 1.0      // edge unchanged
-delta = won ? +bigBlind × 1.0 : −bigBlind × 1.0
+effective_win_prob = 0.5 + (win_prob − 0.5) × edgeRealization   // = 0.5 + edge × 1.0 (unchanged)
+swing_mult        = volatility                                    // = 1.0 (reference baseline)
+
+delta = won ? +bigBlind × swing_mult : −bigBlind × swing_mult    // = ±bigBlind × 1.0
 ```
 
 **Assumptions**
 - Each hand stakes exactly one big blind (win or lose). This models a simplification of real NLHE where pot sizes vary enormously. The big-blind unit is conventional in win-rate tracking (bb/hand) and gives a meaningful relative measure.
+- **Volatility 1.0** is the reference baseline. All other format volatilities are expressed relative to this value.
 - Edge realization of 1.0 means NLHE is the reference format: skill expresses itself fully with no format-specific distortion.
 - No big-swing events: NLHE pot sizes can be large, but the variance is already captured implicitly through the big-blind scaling and Monte Carlo randomness.
 
@@ -375,10 +378,12 @@ FORMAT_CONFIGS.plo_cash = {
 **Hand resolution:**
 
 ```
-effective_win_prob = 0.5 + (win_prob − 0.5) × 0.9      // edge slightly compressed
+effective_win_prob = 0.5 + (win_prob − 0.5) × edgeRealization   // = 0.5 + edge × 0.9
 
-// 10% of hands trigger a big-swing pot:
-swing_mult = (random() < 0.1) ? 1.6 × 3.0 : 1.6        // = 4.8 or 1.6
+// swing_mult is volatility, scaled up for big-swing hands:
+swing_mult = volatility                                          // = 1.6 (normal hand)
+if random() < bigSwingFreq (0.10):
+  swing_mult = volatility × bigSwingMult                        // = 1.6 × 3.0 = 4.8
 
 delta = won ? +bigBlind × swing_mult : −bigBlind × swing_mult
 ```
@@ -426,6 +431,9 @@ else                              → delta = −buyIn
 
 **Edge realization 1.15**  
 In a hyper-turbo Spin & Go, the shallow starting-stack depth and rapid blind escalation force play into push/fold situations where a skilled player's knowledge of optimal shoving ranges (ICM-adjusted GTO strategy) provides a concrete, quantifiable advantage over recreational players who guess or use intuition. Although reduced stack depth generally lowers the number of post-flop decision points, the remaining decisions are high-leverage all-in spots where edge is concentrated and measurable. The simulator uses 1.15 to reflect this skill amplification relative to the deeper-stacked NLHE cash baseline.
+
+**Volatility 1.35 — metadata only**  
+`volatility = 1.35` is stored in the Spin & Go config to record that tournament outcomes are 35% more volatile than NLHE cash on a per-unit basis, reflecting the binary all-or-nothing prize structure. However, `simulateSpinGoTournament` does **not** apply this as a direct stake multiplier. Tournament variance is instead captured *structurally* through the three discrete outcome probabilities (1st / 2nd / 3rd) and the 70/30 prize split: a player who finishes 3rd loses the entire buy-in, while a 1st-place finish can return 2.1× the buy-in (at the base 1× multiplier). This discrete, asymmetric payoff distribution inherently produces higher bankroll variance than a ±1 BB cash outcome without needing an explicit volatility multiplier.
 
 #### 6.5 Poker Match Beginner (Best-of-3 Fixed-Bet Heads-Up)
 
@@ -475,6 +483,9 @@ At p = 0.54:  P(win match) ≈ 0.54² × (3 − 2×0.54) ≈ 0.567
 ```
 
 This is a modest but meaningful improvement over the per-round probability, consistent with the design intent of the format.
+
+**Volatility 0.8 — metadata only**  
+`volatility = 0.8` is stored in the Poker Match config to record that the format produces smaller bankroll swings per unit than NLHE cash — a consequence of fixed bet sizing (no large pot escalation) and the short best-of-3 structure. However, `simulatePokerMatch` does **not** apply this as a multiplier. The stake variance is instead captured *directly* by the fixed `matchCost` and `matchReward` parameters, which already encode the exact dollar amounts at risk per match. Applying an additional multiplier would double-count the stake size.
 
 ---
 
