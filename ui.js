@@ -168,6 +168,11 @@ function setChartVisibility(showLines, showTable) {
   document.getElementById('compareTableCard').style.display = showTable ? 'block' : 'none';
 }
 
+function setComparisonTableSubtitle(text) {
+  const el = document.getElementById('compareTableSubtitle');
+  if (el) el.textContent = text;
+}
+
 // ---------------------------------------------------------------------------
 // Main async simulation runner
 // ---------------------------------------------------------------------------
@@ -190,9 +195,23 @@ function runSimulationAsync(params) {
     setTimeout(() => {
       let resultsMap, primaryResult;
 
-      if (isCompareFormats) {
+      if (isCompareFormats && isComparePolicies) {
+        // ── Compare ALL formats × ALL policies (4 × 4 = 16 simulations) ──
+        const fullResults = runFullComparison(params);
+        setComparisonTableSubtitle(
+          'Key survival and retention metrics across all game formats and matchmaking policies.');
+        setChartVisibility(false, true);
+        renderBustChartGrouped(fullResults);
+        renderFullComparisonTable(fullResults);
+        // Clear bust-stats pills — 16 entries would be too cluttered
+        const bustStats = document.getElementById('bustStats');
+        if (bustStats) bustStats.innerHTML = '';
+
+      } else if (isCompareFormats) {
         // ── Compare all formats for the selected policy ──────────────────
         resultsMap = runFormatComparison(params);
+        setComparisonTableSubtitle(
+          'Key survival and retention metrics across all game formats for the selected matchmaking policy.');
         setChartVisibility(false, true);
         renderBustChart(resultsMap, FORMAT_COLORS);
         renderComparisonTable(resultsMap, FORMAT_COLORS);

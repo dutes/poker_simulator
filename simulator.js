@@ -232,6 +232,28 @@ function runFormatComparison(baseParams) {
 }
 
 /**
+ * Run all 4 game formats × all 4 matchmaking policies (16 simulations total).
+ * Returns a nested map: { formatKey: { policyKey: result } }
+ *
+ * @param {Object} baseParams - All params (formatKey and policy are overridden internally)
+ * @returns {Object} Nested results map
+ */
+function runFullComparison(baseParams) {
+  const formats  = ['nlhe_cash', 'spin_go', 'plo_cash', 'poker_match'];
+  const policies = ['random', 'banding', 'beginner', 'protected'];
+  const results  = {};
+  for (const formatKey of formats) {
+    // maxUnits depends only on formatKey and format-specific slider values, not on policy
+    const maxUnits = getDefaultMaxUnits(formatKey, baseParams);
+    results[formatKey] = {};
+    for (const policy of policies) {
+      results[formatKey][policy] = runSimulation({ ...baseParams, formatKey, maxUnits, policy });
+    }
+  }
+  return results;
+}
+
+/**
  * Resolve the max unit count for a format, using params if provided or
  * falling back to the format's sensible default.
  */

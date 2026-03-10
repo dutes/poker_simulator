@@ -282,6 +282,118 @@ function renderComparisonTable(resultsMap, colorMap) {
 }
 
 // ---------------------------------------------------------------------------
+// Grouped bust rate bar chart (Compare All Formats + Compare All Policies)
+// ---------------------------------------------------------------------------
+
+/**
+ * Render a grouped bust-rate bar chart for the full format × policy matrix.
+ * Each format is a group on the x-axis; each policy is a coloured dataset.
+ *
+ * @param {Object} fullResultsMap - { formatKey: { policyKey: result } }
+ */
+function renderBustChartGrouped(fullResultsMap) {
+  const ctx = document.getElementById('bustChart').getContext('2d');
+  if (bustChartInst) bustChartInst.destroy();
+
+  const formats  = Object.keys(fullResultsMap);
+  const policies = ['random', 'banding', 'beginner', 'protected'];
+  const xLabels  = formats.map(f => ALL_LABELS[f] || f);
+
+  const datasets = policies.map(policy => {
+    const c = POLICY_COLORS[policy] || POLICY_COLORS.default;
+    return {
+      label:           ALL_LABELS[policy] || policy,
+      data:            formats.map(fmt => {
+        const r = fullResultsMap[fmt][policy];
+        return r ? +r.bustRate.toFixed(2) : 0;
+      }),
+      backgroundColor: c.border + 'cc',
+      borderColor:     c.border,
+      borderWidth:     2,
+      borderRadius:    6,
+    };
+  });
+
+  bustChartInst = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: xLabels, datasets },
+    options: {
+      ...baseChartOptions('', 'Bust Rate (%)'),
+      plugins: {
+        legend:  { display: true, labels: { color: '#ccc', font: { size: 12 } } },
+        tooltip: { backgroundColor: '#1a1a2e', titleColor: '#eee', bodyColor: '#ccc' },
+      },
+      scales: {
+        x: { ticks: { color: '#999' }, grid: { color: 'rgba(255,255,255,0.06)' } },
+        y: {
+          min: 0, max: 100,
+          title: { display: true, text: 'Bust Rate (%)', color: '#aaa' },
+          ticks: { color: '#999' },
+          grid:  { color: 'rgba(255,255,255,0.06)' },
+        },
+      },
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Full comparison table (Compare All Formats + Compare All Policies)
+// ---------------------------------------------------------------------------
+
+/**
+ * Render a summary table for all format × policy combinations.
+ *
+ * @param {Object} fullResultsMap - { formatKey: { policyKey: result } }
+ */
+function renderFullComparisonTable(fullResultsMap) {
+  const container = document.getElementById('comparisonTable');
+  if (!container) return;
+
+  const formats  = Object.keys(fullResultsMap);
+  const policies = ['random', 'banding', 'beginner', 'protected'];
+
+  const rows = [];
+  for (const fmt of formats) {
+    for (const pol of policies) {
+      const r = fullResultsMap[fmt] && fullResultsMap[fmt][pol];
+      if (!r) continue;
+      const fmtColor = (FORMAT_COLORS[fmt] || FORMAT_COLORS.default).border;
+      const polColor = (POLICY_COLORS[pol] || POLICY_COLORS.default).border;
+      const ret10    = r.retention[10] != null ? r.retention[10].toFixed(1) + '%' : '—';
+      const ret25    = r.retention[25] != null ? r.retention[25].toFixed(1) + '%' : '—';
+      const ret50    = r.retention[50] != null ? r.retention[50].toFixed(1) + '%' : '—';
+      rows.push(`<tr>
+        <td><span class="dot" style="background:${fmtColor}"></span>${ALL_LABELS[fmt] || fmt}</td>
+        <td><span class="dot" style="background:${polColor}"></span>${ALL_LABELS[pol] || pol}</td>
+        <td>${r.bustRate.toFixed(1)}%</td>
+        <td>${r.avgUnitsSurvived.toFixed(1)}</td>
+        <td>$${r.avgEndingBankroll.toFixed(0)}</td>
+        <td>${ret10}</td>
+        <td>${ret25}</td>
+        <td>${ret50}</td>
+      </tr>`);
+    }
+  }
+
+  container.innerHTML = `
+    <table class="comparison-table">
+      <thead>
+        <tr>
+          <th>Format</th>
+          <th>Policy</th>
+          <th>Bust Rate</th>
+          <th>Avg Units Survived</th>
+          <th>Avg Ending Bankroll</th>
+          <th>Survival @10</th>
+          <th>Survival @25</th>
+          <th>Survival @50</th>
+        </tr>
+      </thead>
+      <tbody>${rows.join('')}</tbody>
+    </table>`;
+}
+
+// ---------------------------------------------------------------------------
 // Bust stats pills (beneath the bust-rate chart)
 // ---------------------------------------------------------------------------
 
