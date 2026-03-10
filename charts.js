@@ -1,32 +1,47 @@
 /**
  * charts.js
- * Chart.js wrappers for the Poker Ecosystem Simulator.
+ * Chart.js wrappers for the Poker Ecosystem Simulator v2.
  * Keeps all charting concerns separated from simulation logic.
  */
 
 // ---------------------------------------------------------------------------
-// Color palette (one color per matchmaking mode + single-run default)
+// Color palettes
 // ---------------------------------------------------------------------------
 
-const MODE_COLORS = {
-  random:   { border: '#e74c3c', background: 'rgba(231,76,60,0.15)'   },
-  banding:  { border: '#3498db', background: 'rgba(52,152,219,0.15)'  },
-  beginner: { border: '#2ecc71', background: 'rgba(46,204,113,0.15)'  },
-  short:    { border: '#f39c12', background: 'rgba(243,156,18,0.15)'  },
-  default:  { border: '#9b59b6', background: 'rgba(155,89,182,0.15)'  },
+// One colour per matchmaking policy
+const POLICY_COLORS = {
+  random:    { border: '#e74c3c', bg: 'rgba(231,76,60,0.15)'   },
+  banding:   { border: '#3498db', bg: 'rgba(52,152,219,0.15)'  },
+  beginner:  { border: '#2ecc71', bg: 'rgba(46,204,113,0.15)'  },
+  protected: { border: '#f39c12', bg: 'rgba(243,156,18,0.15)'  },
+  default:   { border: '#9b59b6', bg: 'rgba(155,89,182,0.15)'  },
 };
 
-const MODE_LABELS = {
-  random:   'Random Pool',
-  banding:  'Skill Banding',
-  beginner: 'Beginner Pool',
-  short:    'Short Match',
+// One colour per game format
+const FORMAT_COLORS = {
+  nlhe_cash:   { border: '#3498db', bg: 'rgba(52,152,219,0.15)'  },
+  spin_go:     { border: '#e74c3c', bg: 'rgba(231,76,60,0.15)'   },
+  plo_cash:    { border: '#f39c12', bg: 'rgba(243,156,18,0.15)'  },
+  poker_match: { border: '#2ecc71', bg: 'rgba(46,204,113,0.15)'  },
+  default:     { border: '#9b59b6', bg: 'rgba(155,89,182,0.15)'  },
 };
 
-// Instances kept so they can be destroyed before recreation
-let survivalChartInstance  = null;
-let bankrollChartInstance  = null;
-let bustChartInstance      = null;
+// Flat label map covering both policies and formats
+const ALL_LABELS = {
+  random:      'Random Pool',
+  banding:     'Skill Banding',
+  beginner:    'Beginner Pool',
+  protected:   'Protected Onboarding',
+  nlhe_cash:   'NLHE Cash',
+  spin_go:     'Spin & Go',
+  plo_cash:    'PLO Cash',
+  poker_match: 'Poker Match Beginner',
+};
+
+// Active chart instances (destroyed before re-render)
+let survivalChartInst = null;
+let bankrollChartInst = null;
+let bustChartInst     = null;
 
 // ---------------------------------------------------------------------------
 // Shared chart defaults
@@ -38,9 +53,7 @@ function baseChartOptions(xLabel, yLabel) {
     maintainAspectRatio: false,
     interaction: { mode: 'index', intersect: false },
     plugins: {
-      legend: {
-        labels: { color: '#ccc', font: { size: 13 } },
-      },
+      legend: { labels: { color: '#ccc', font: { size: 12 } } },
       tooltip: { backgroundColor: '#1a1a2e', titleColor: '#eee', bodyColor: '#ccc' },
     },
     scales: {
@@ -59,112 +72,159 @@ function baseChartOptions(xLabel, yLabel) {
 }
 
 // ---------------------------------------------------------------------------
-// Survival chart
+// Dataset builder for line charts
 // ---------------------------------------------------------------------------
 
 /**
- * Render (or re-render) the survival probability chart.
+ * Build Chart.js dataset array from either a single result or a comparison map.
  *
- * @param {Object|Object[]} resultsOrMap
- *   - For single mode: one result object { labels, survivalProbability }
- *   - For comparison:  map { random: result, banding: result, ... }
- * @param {string|null} singleMode  - The mode key when not in comparison mode
+ * @param {Object}        resultsOrMap - Single result (has .labels) or { key: result } map
+ * @param {string|null}   singleKey    - Key when resultsOrMap is a single result
+ * @param {Function}      dataFn       - (result) => array of y values
+ * @param {Function}      labelFn      - (humanLabel) => dataset label string
+ * @param {Object}        colorMap     - POLICY_COLORS or FORMAT_COLORS
  */
-function renderSurvivalChart(resultsOrMap, singleMode) {
-  const ctx = document.getElementById('survivalChart').getContext('2d');
-  if (survivalChartInstance) survivalChartInstance.destroy();
+function buildLineDatasets(resultsOrMap, singleKey, dataFn, labelFn, colorMap) {
+  if (resultsOrMap && resultsOrMap.labels) {
+    // Single mode
+    const c   = colorMap[singleKey] || colorMap.default;
+    const lbl = ALL_LABELS[singleKey] || singleKey || 'Result';
+    return [{
+      label:           labelFn(lbl),
+      data:            dataFn(resultsOrMap),
+      borderColor:     c.border,
+      backgroundColor: c.bg,
+      borderWidth:     2,
+      pointRadius:     0,
+      tension:         0.3,
+      fill:            true,
+    }];
+  }
 
-  const datasets = buildDatasets(
-    resultsOrMap, singleMode,
-    (r) => r.survivalProbability,
-    (label) => `${label} — Survival`,
+  // Comparison map — one dataset per key
+  return Object.entries(resultsOrMap).map(([key, result]) => {
+    const c   = colorMap[key] || colorMap.default;
+    const lbl = ALL_LABELS[key] || key;
+    return {
+      label:           labelFn(lbl),
+      data:            dataFn(result),
+      borderColor:     c.border,
+      backgroundColor: c.bg,
+      borderWidth:     2,
+      pointRadius:     0,
+      tension:         0.3,
+      fill:            false,
+    };
+  });
+}
+
+function getChartLabels(resultsOrMap) {
+  if (resultsOrMap && resultsOrMap.labels) return resultsOrMap.labels;
+  const first = Object.values(resultsOrMap)[0];
+  return first ? first.labels : [];
+}
+
+// ---------------------------------------------------------------------------
+// Survival probability chart
+// ---------------------------------------------------------------------------
+
+/**
+ * Render (or re-render) the survival probability line chart.
+ *
+ * @param {Object}      resultsOrMap - Single result or { key: result } map
+ * @param {string|null} singleKey    - Mode key when not in comparison
+ * @param {string}      unitLabel    - x-axis label (Hands / Tournaments / Matches)
+ * @param {Object}      colorMap     - POLICY_COLORS or FORMAT_COLORS
+ */
+function renderSurvivalChart(resultsOrMap, singleKey, unitLabel, colorMap) {
+  const ctx = document.getElementById('survivalChart').getContext('2d');
+  if (survivalChartInst) survivalChartInst.destroy();
+
+  const datasets = buildLineDatasets(
+    resultsOrMap, singleKey,
+    r  => r.survivalProbability,
+    lbl => `${lbl} — Survival`,
+    colorMap || POLICY_COLORS,
   );
 
-  survivalChartInstance = new Chart(ctx, {
+  survivalChartInst = new Chart(ctx, {
     type: 'line',
-    data: { labels: getLabels(resultsOrMap), datasets },
-    options: {
-      ...baseChartOptions('Hands Played', 'Survival Probability (%)'),
-      plugins: {
-        ...baseChartOptions().plugins,
-        legend: { labels: { color: '#ccc', font: { size: 13 } } },
-        tooltip: { backgroundColor: '#1a1a2e', titleColor: '#eee', bodyColor: '#ccc' },
-      },
-    },
+    data: { labels: getChartLabels(resultsOrMap), datasets },
+    options: baseChartOptions(unitLabel || 'Units', 'Survival Probability (%)'),
   });
 }
 
 // ---------------------------------------------------------------------------
-// Average bankroll chart
+// Average bankroll trajectory chart
 // ---------------------------------------------------------------------------
 
 /**
  * Render (or re-render) the average bankroll trajectory chart.
  */
-function renderBankrollChart(resultsOrMap, singleMode) {
+function renderBankrollChart(resultsOrMap, singleKey, unitLabel, colorMap) {
   const ctx = document.getElementById('bankrollChart').getContext('2d');
-  if (bankrollChartInstance) bankrollChartInstance.destroy();
+  if (bankrollChartInst) bankrollChartInst.destroy();
 
-  const datasets = buildDatasets(
-    resultsOrMap, singleMode,
-    (r) => r.averageBankroll,
-    (label) => `${label} — Avg Bankroll`,
+  const datasets = buildLineDatasets(
+    resultsOrMap, singleKey,
+    r  => r.averageBankroll,
+    lbl => `${lbl} — Avg Bankroll`,
+    colorMap || POLICY_COLORS,
   );
 
-  bankrollChartInstance = new Chart(ctx, {
+  bankrollChartInst = new Chart(ctx, {
     type: 'line',
-    data: { labels: getLabels(resultsOrMap), datasets },
-    options: baseChartOptions('Hands Played', 'Average Bankroll ($)'),
+    data: { labels: getChartLabels(resultsOrMap), datasets },
+    options: baseChartOptions(unitLabel || 'Units', 'Average Bankroll ($)'),
   });
 }
 
 // ---------------------------------------------------------------------------
-// Bust rate comparison chart
+// Bust rate bar chart
 // ---------------------------------------------------------------------------
 
 /**
  * Render (or re-render) the bust-rate bar chart.
  *
- * @param {Object} resultsMap - Always a map: { random, banding, beginner, short }
+ * @param {Object} resultsMap - { key: result } — always a map
+ * @param {Object} colorMap   - POLICY_COLORS or FORMAT_COLORS
  */
-function renderBustChart(resultsMap) {
+function renderBustChart(resultsMap, colorMap) {
   const ctx = document.getElementById('bustChart').getContext('2d');
-  if (bustChartInstance) bustChartInstance.destroy();
+  if (bustChartInst) bustChartInst.destroy();
 
-  const modes  = Object.keys(resultsMap);
-  const labels = modes.map((m) => MODE_LABELS[m] || m);
-  const data   = modes.map((m) => parseFloat(resultsMap[m].bustRate.toFixed(2)));
-  const colors = modes.map((m) => (MODE_COLORS[m] || MODE_COLORS.default).border);
+  const cm     = colorMap || POLICY_COLORS;
+  const keys   = Object.keys(resultsMap);
+  const labels = keys.map(k => ALL_LABELS[k] || k);
+  const data   = keys.map(k => +resultsMap[k].bustRate.toFixed(2));
+  const colors = keys.map(k => (cm[k] || cm.default).border);
 
-  bustChartInstance = new Chart(ctx, {
+  bustChartInst = new Chart(ctx, {
     type: 'bar',
     data: {
       labels,
       datasets: [{
-        label: 'Bust Rate (%)',
+        label:           'Bust Rate (%)',
         data,
-        backgroundColor: colors.map((c) => c + 'cc'),
-        borderColor: colors,
-        borderWidth: 2,
-        borderRadius: 6,
+        backgroundColor: colors.map(c => c + 'cc'),
+        borderColor:     colors,
+        borderWidth:     2,
+        borderRadius:    6,
       }],
     },
     options: {
-      ...baseChartOptions('Matchmaking Mode', 'Bust Rate (%)'),
+      ...baseChartOptions('', 'Bust Rate (%)'),
       plugins: {
-        legend: { display: false },
+        legend:  { display: false },
         tooltip: { backgroundColor: '#1a1a2e', titleColor: '#eee', bodyColor: '#ccc' },
-        datalabels: false,
       },
       scales: {
-        ...baseChartOptions().scales,
+        x: { ticks: { color: '#999' }, grid: { color: 'rgba(255,255,255,0.06)' } },
         y: {
-          ...baseChartOptions().scales.y,
-          min: 0,
-          max: 100,
+          min: 0, max: 100,
           title: { display: true, text: 'Bust Rate (%)', color: '#aaa' },
           ticks: { color: '#999' },
-          grid: { color: 'rgba(255,255,255,0.06)' },
+          grid:  { color: 'rgba(255,255,255,0.06)' },
         },
       },
     },
@@ -172,66 +232,77 @@ function renderBustChart(resultsMap) {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Format comparison summary table
 // ---------------------------------------------------------------------------
 
-function getLabels(resultsOrMap) {
-  if (resultsOrMap && resultsOrMap.labels) return resultsOrMap.labels;
-  const first = Object.values(resultsOrMap)[0];
-  return first ? first.labels : [];
+/**
+ * Render a summary comparison table (used in Compare Formats mode).
+ *
+ * @param {Object} resultsMap - { formatKey: result }
+ * @param {Object} colorMap   - FORMAT_COLORS
+ */
+function renderComparisonTable(resultsMap, colorMap) {
+  const container = document.getElementById('comparisonTable');
+  if (!container) return;
+
+  const cm = colorMap || FORMAT_COLORS;
+
+  const rows = Object.entries(resultsMap).map(([key, r]) => {
+    const color = (cm[key] || cm.default).border;
+    const label = ALL_LABELS[key] || key;
+    const ret10 = r.retention[10] != null ? r.retention[10].toFixed(1) + '%' : '—';
+    const ret25 = r.retention[25] != null ? r.retention[25].toFixed(1) + '%' : '—';
+    const ret50 = r.retention[50] != null ? r.retention[50].toFixed(1) + '%' : '—';
+    return `<tr>
+      <td><span class="dot" style="background:${color}"></span>${label}</td>
+      <td>${r.bustRate.toFixed(1)}%</td>
+      <td>${r.avgUnitsSurvived.toFixed(1)}</td>
+      <td>$${r.avgEndingBankroll.toFixed(0)}</td>
+      <td>${ret10}</td>
+      <td>${ret25}</td>
+      <td>${ret50}</td>
+    </tr>`;
+  }).join('');
+
+  container.innerHTML = `
+    <table class="comparison-table">
+      <thead>
+        <tr>
+          <th>Format</th>
+          <th>Bust Rate</th>
+          <th>Avg Units Survived</th>
+          <th>Avg Ending Bankroll</th>
+          <th>Survival @10</th>
+          <th>Survival @25</th>
+          <th>Survival @50</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
 }
 
-function buildDatasets(resultsOrMap, singleMode, dataFn, labelFn) {
-  if (resultsOrMap && resultsOrMap.labels) {
-    // Single mode result
-    const colors = MODE_COLORS[singleMode] || MODE_COLORS.default;
-    const label  = MODE_LABELS[singleMode] || (singleMode || 'Result');
-    return [{
-      label: labelFn(label),
-      data: dataFn(resultsOrMap),
-      borderColor: colors.border,
-      backgroundColor: colors.background,
-      borderWidth: 2,
-      pointRadius: 0,
-      tension: 0.3,
-      fill: true,
-    }];
-  }
-
-  // Comparison map
-  return Object.entries(resultsOrMap).map(([mode, result]) => {
-    const colors = MODE_COLORS[mode] || MODE_COLORS.default;
-    const label  = MODE_LABELS[mode] || mode;
-    return {
-      label: labelFn(label),
-      data: dataFn(result),
-      borderColor: colors.border,
-      backgroundColor: colors.background,
-      borderWidth: 2,
-      pointRadius: 0,
-      tension: 0.3,
-      fill: false,
-    };
-  });
-}
+// ---------------------------------------------------------------------------
+// Bust stats pills (beneath the bust-rate chart)
+// ---------------------------------------------------------------------------
 
 /**
- * Update the bust-stats panel text beneath the bar chart.
+ * Populate the bust-stats pill strip with per-key bust stats.
  *
- * @param {Object} resultsMap - { mode: result }
+ * @param {Object} resultsMap - { key: result }
+ * @param {Object} colorMap   - POLICY_COLORS or FORMAT_COLORS
  */
-function updateBustStats(resultsMap) {
+function updateBustStats(resultsMap, colorMap) {
   const container = document.getElementById('bustStats');
   if (!container) return;
 
-  container.innerHTML = Object.entries(resultsMap)
-    .map(([mode, r]) => {
-      const color = (MODE_COLORS[mode] || MODE_COLORS.default).border;
-      return `<span class="stat-pill" style="border-color:${color}">
-        <strong style="color:${color}">${MODE_LABELS[mode] || mode}</strong>
-        &nbsp;${r.bustRate.toFixed(1)}% bust &nbsp;|&nbsp;
-        ${r.numSimulations - r.bustedCount} / ${r.numSimulations} survived
-      </span>`;
-    })
-    .join('');
+  const cm = colorMap || POLICY_COLORS;
+  container.innerHTML = Object.entries(resultsMap).map(([key, r]) => {
+    const color = (cm[key] || cm.default).border;
+    const label = ALL_LABELS[key] || key;
+    return `<span class="stat-pill" style="border-color:${color}">
+      <strong style="color:${color}">${label}</strong>
+      &nbsp;${r.bustRate.toFixed(1)}% bust
+      &nbsp;|&nbsp;${r.numSimulations - r.bustedCount} / ${r.numSimulations} survived
+    </span>`;
+  }).join('');
 }
