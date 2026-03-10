@@ -67,7 +67,7 @@
       <!-- Protected Onboarding count — shown only when policy = protected -->
       <div id="protectedControl" class="control-group" style="display:none">
         <label for="protectedCount">
-          Protected Units <span class="val" id="protectedCountVal">10</span>
+          <span class="tooltip">Protected Units <span class="info-icon">ⓘ</span><span class="tooltiptext">Number of initial units where you are matched against opponents very close to your own skill level. After this window expires, matchmaking reverts to the Random Pool.</span></span> <span class="val" id="protectedCountVal">10</span>
         </label>
         <input type="range" id="protectedCount" min="1" max="50" step="1" value="10" />
       </div>
@@ -97,14 +97,16 @@
 
       <div class="control-group">
         <label for="poolSpread">
-          Pool Skill Spread <span class="val" id="poolSpreadVal">500</span>
+          <span class="tooltip">Pool Skill Spread <span class="info-icon">ⓘ</span><span class="tooltiptext">Controls the width of the opponent skill distribution. Higher values mean you face a wider range of opponents, from beginners to experts.</span></span>
+          <span class="val" id="poolSpreadVal">500</span>
         </label>
         <input type="range" id="poolSpread" min="50" max="1000" step="50" value="500" />
       </div>
 
       <div class="control-group">
         <label for="scalingFactor">
-          Scaling Factor <span class="val" id="scalingFactorVal">2000</span>
+          <span class="tooltip">Scaling Factor <span class="info-icon">ⓘ</span><span class="tooltiptext">Controls how strongly a skill gap shifts win probability. At the default of 2000, a 500-point skill gap shifts win rate by ±25%. See the README for the full formula.</span></span>
+          <span class="val" id="scalingFactorVal">2000</span>
         </label>
         <input type="range" id="scalingFactor" min="500" max="5000" step="100" value="2000" />
       </div>
@@ -125,7 +127,8 @@
       <h2>Cash Game Settings</h2>
       <div class="control-group">
         <label for="bigBlind">
-          Big Blind <span class="val" id="bigBlindVal">$5</span>
+          <span class="tooltip">Big Blind <span class="info-icon">ⓘ</span><span class="tooltiptext">The stake per hand. Larger values increase how much you win or lose each hand, raising bankroll volatility and the risk of busting sooner.</span></span>
+          <span class="val" id="bigBlindVal">$5</span>
         </label>
         <input type="range" id="bigBlind" min="1" max="50" step="1" value="5" />
       </div>
@@ -143,19 +146,22 @@
       <h2>Spin &amp; Go Settings</h2>
       <div class="control-group">
         <label for="buyIn">
-          Buy-in <span class="val" id="buyInVal">$10</span>
+          <span class="tooltip">Buy-in <span class="info-icon">ⓘ</span><span class="tooltiptext">The entry fee for each Spin & Go tournament. If your bankroll drops below this amount you are busted and the simulation ends.</span></span>
+          <span class="val" id="buyInVal">$10</span>
         </label>
         <input type="range" id="buyIn" min="1" max="100" step="1" value="10" />
       </div>
       <div class="control-group">
         <label for="numTournaments">
-          Tournaments <span class="val" id="numTournamentsVal">50</span>
+          <span class="tooltip">Tournaments <span class="info-icon">ⓘ</span><span class="tooltiptext">Total number of Spin & Go tournaments played in the simulation. More tournaments means a longer session before the simulation ends.</span></span>
+          <span class="val" id="numTournamentsVal">50</span>
         </label>
         <input type="range" id="numTournaments" min="10" max="200" step="5" value="50" />
       </div>
       <div class="control-group">
         <label for="prizeMultiplier">
-          Prize Multiplier <span class="val" id="prizeMultiplierVal">1.0</span>
+          <span class="tooltip">Prize Multiplier <span class="info-icon">ⓘ</span><span class="tooltiptext">Scales the total prize pool for each tournament. A value above 1.0 simulates jackpot spins where the prize pool is larger than the standard 3× buy-in.</span></span>
+          <span class="val" id="prizeMultiplierVal">1.0</span>
         </label>
         <input type="range" id="prizeMultiplier" min="0.5" max="3.0" step="0.1" value="1.0" />
       </div>
@@ -166,25 +172,29 @@
       <h2>Poker Match Settings</h2>
       <div class="control-group">
         <label for="matchCost">
-          Match Entry Cost <span class="val" id="matchCostVal">$10</span>
+          <span class="tooltip">Match Entry Cost <span class="info-icon">ⓘ</span><span class="tooltiptext">The amount deducted from your bankroll when you lose a Poker Match. If your bankroll drops below this amount you are busted.</span></span>
+          <span class="val" id="matchCostVal">$10</span>
         </label>
         <input type="range" id="matchCost" min="1" max="100" step="1" value="10" />
       </div>
       <div class="control-group">
         <label for="matchReward">
-          Match Reward <span class="val" id="matchRewardVal">$10</span>
+          <span class="tooltip">Match Reward <span class="info-icon">ⓘ</span><span class="tooltiptext">The amount added to your bankroll when you win a Poker Match. Set this equal to Match Entry Cost for a symmetric win/loss stake.</span></span>
+          <span class="val" id="matchRewardVal">$10</span>
         </label>
         <input type="range" id="matchReward" min="1" max="100" step="1" value="10" />
       </div>
       <div class="control-group">
         <label for="numMatches">
-          Matches per Session <span class="val" id="numMatchesVal">50</span>
+          <span class="tooltip">Matches per Session <span class="info-icon">ⓘ</span><span class="tooltiptext">Total number of Poker Matches played in the simulation. More matches means a longer session before the simulation ends.</span></span>
+          <span class="val" id="numMatchesVal">50</span>
         </label>
         <input type="range" id="numMatches" min="10" max="200" step="5" value="50" />
       </div>
       <div class="control-group">
         <label for="edgeCompression">
-          Edge Compression <span class="val" id="edgeCompressionVal">0.40</span>
+          <span class="tooltip">Edge Compression <span class="info-icon">ⓘ</span><span class="tooltiptext">Reduces how much your skill advantage affects each round. Lower values mean luck dominates more over skill. Default 0.40 means only 40% of skill edge is realised. See the README for details.</span></span>
+          <span class="val" id="edgeCompressionVal">0.40</span>
         </label>
         <input type="range" id="edgeCompression" min="0.10" max="1.00" step="0.05" value="0.40" />
       </div>
