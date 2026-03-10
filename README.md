@@ -92,21 +92,45 @@ Then open [http://localhost:8000](http://localhost:8000) in your browser.
 
 All parameters are controlled through sliders in the left panel. Changes take effect when you click **Run Simulation**.
 
+#### Global Parameters
+
 | Parameter | Range | Default | Description |
 |---|---|---|---|
-| **Starting Bankroll** | $50 – $2,000 | $500 | The amount of chips each simulated player starts with. |
-| **Big Blind** | $1 – $50 | $5 | The cost (and reward) per hand. Larger values increase volatility. |
-| **Hands per Session** | 10 – 200 | 50 | How many hands are played before a new opponent is drawn. |
-| **Sessions to Simulate** | 5 – 100 | 20 | Total sessions played; maximum hands = hands × sessions. |
+| **Starting Bankroll** | $50 – $2,000 | $500 | The amount of chips each simulated player starts with. If their bankroll reaches zero they are busted and the run ends. |
 | **Monte Carlo Runs** | 500 – 5,000 | 1,000 | Number of independent player lifetimes simulated. Higher values give smoother, more accurate results at the cost of speed. |
-| **Player Pool Spread** | 50 – 1,000 | 500 | Controls the width of the opponent skill distribution. Higher values mean a wider range of opponents. |
+| **Pool Skill Spread** | 50 – 1,000 | 500 | Controls the width of the opponent skill distribution. Higher values mean you face a wider range of opponents, from beginners to experts. |
+| **Scaling Factor** | 500 – 5,000 | 2,000 | Controls how strongly a skill gap shifts win probability. At the default of 2,000 a 500-point skill gap shifts win rate by ±25 percentage points. See [Win Probability Model](#5-win-probability-model) for the full formula. |
+| **Player Skill** | 500 – 2,000 | 1,000 | Numeric ability rating for the simulated new player. Opponents are sampled relative to this value by the active matchmaking policy. |
 
-Two values are fixed internally:
+#### Cash Game Settings (NLHE Cash / PLO Cash)
 
-| Parameter | Value | Description |
-|---|---|---|
-| **Player Skill** | 1,000 | Baseline skill rating for the simulated player. |
-| **Scaling Factor** | 2,000 | Governs how strongly a skill gap shifts win probability. A 500-point gap shifts win rate by 25%. |
+| Parameter | Range | Default | Description |
+|---|---|---|---|
+| **Big Blind** | $1 – $50 | $5 | The stake per hand. Larger values increase how much you win or lose each hand, raising bankroll volatility and the risk of busting sooner. |
+| **Hands per Session** | 20 – 500 | 200 | Maximum number of hands a simulated player can play before the session ends. |
+
+#### Spin & Go Settings
+
+| Parameter | Range | Default | Description |
+|---|---|---|---|
+| **Buy-in** | $1 – $100 | $10 | Entry fee for each Spin & Go tournament. If your bankroll drops below this amount you are busted. |
+| **Tournaments** | 10 – 200 | 50 | Total number of Spin & Go tournaments played per simulation run. |
+| **Prize Multiplier** | 0.5 – 3.0 | 1.0 | Scales the total prize pool. A value above 1.0 simulates jackpot spins where the prize pool is larger than the standard 3× buy-in. |
+
+#### Poker Match Settings
+
+| Parameter | Range | Default | Description |
+|---|---|---|---|
+| **Match Entry Cost** | $1 – $100 | $10 | Amount deducted from your bankroll when you lose a Poker Match. If your bankroll drops below this amount you are busted. |
+| **Match Reward** | $1 – $100 | $10 | Amount added to your bankroll when you win a Poker Match. |
+| **Matches per Session** | 10 – 200 | 50 | Total number of Poker Matches played per simulation run. |
+| **Edge Compression** | 0.10 – 1.00 | 0.40 | Reduces how much your skill advantage affects each round. A value of 0.40 means only 40% of the theoretical skill edge is realised per round — the format's simplified mechanics (fixed bets, redraw, best-of-3) dilute skill expression. See [Poker Match Beginner](#65-poker-match-beginner-best-of-3-fixed-bet-heads-up) for the full model. |
+
+#### Protected Onboarding Setting
+
+| Parameter | Range | Default | Description |
+|---|---|---|---|
+| **Protected Units** | 1 – 50 | 10 | Number of initial units where you are matched against opponents very close to your own skill level. After this window expires, matchmaking reverts to the Random Pool. |
 
 ### Matchmaking Modes
 
@@ -117,8 +141,8 @@ Select a mode from the **Matchmaking Mode** dropdown:
 | **Random Pool** | Mean 1,500 · Std 500 | A broad, experienced-player-skewed pool. The player faces a wide variety of opponents, many stronger than them. |
 | **Skill Banding** | Mean = player skill · Std 150 | Narrow skill-matched matchmaking. The player is placed against opponents close to their own rating. |
 | **Beginner Pool** | Mean 1,050 · Std 100 | A restricted pool of beginner-level players. Opponents are close in skill to the simulated player. |
-| **Short Match Format** | Mean 1,500 · Std 500 | Opponent is redrawn only once per session block rather than per hand, simulating longer head-to-head matches. |
-| **── Compare All ──** | All of the above | Runs all four modes in parallel and overlays their results on the same charts for direct comparison. |
+| **Protected Onboarding** | Tight around player skill for first N units, then Random Pool | Opponents are tightly matched for a configurable number of initial units (the "protected window"), then matchmaking reverts to Random Pool. The number of protected units is set by the **Protected Units** slider. |
+| **── Compare All Policies ──** | All of the above | Runs all four policies in parallel and overlays their results on the same charts for direct comparison. |
 
 ### Running a Simulation
 
